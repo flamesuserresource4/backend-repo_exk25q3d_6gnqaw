@@ -1,48 +1,56 @@
 """
-Database Schemas
+Database Schemas for FlareOS
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model below maps to a MongoDB collection with the lowercase name
+of the class. Example: ChatThread -> "chatthread".
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+These schemas validate input/output for API endpoints and document our data
+shapes for the built-in database viewer.
 """
-
+from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional, Dict, Any
 
-# Example schemas (replace with your own):
+# Core user-less identity (device-based)
+class Client(BaseModel):
+    device_id: str = Field(..., description="Anonymous device identifier generated client-side")
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+# Chat models
+class ChatMessage(BaseModel):
+    role: str = Field(..., description="'user' | 'assistant'")
+    content: str
+    ts: Optional[int] = Field(None, description="Epoch milliseconds")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class ChatThread(BaseModel):
+    client_id: str = Field(..., description="Device id owner")
+    title: str = Field(..., description="Short title for the chat thread")
+    messages: List[ChatMessage] = Field(default_factory=list)
+    createdAt: int = Field(..., description="Epoch ms when created")
+    updatedAt: int = Field(..., description="Epoch ms when last updated")
 
-# Add your own schemas here:
-# --------------------------------------------------
+# Memory items
+class MemoryItem(BaseModel):
+    client_id: str
+    key: str
+    value: str
+    ts: int
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+# Code document (simple HTML snippet)
+class CodeDoc(BaseModel):
+    client_id: str
+    html: str
+    updatedAt: int
+
+# API Keys (stored as plain for demo; in production encrypt at rest)
+class ApiKeys(BaseModel):
+    client_id: str
+    providers: Dict[str, str] = Field(default_factory=dict, description="Map of provider -> key")
+    updatedAt: int
+
+# Optional generic document model for database modeling playground
+class GenericDoc(BaseModel):
+    client_id: str
+    collection: str
+    data: Dict[str, Any]
+    createdAt: int
+    updatedAt: int
